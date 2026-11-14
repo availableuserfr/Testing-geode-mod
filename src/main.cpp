@@ -1,11 +1,16 @@
 #include <Geode/Geode.hpp>
 #include <Geode/modify/GJBaseGameLayer.hpp>
 #include <Geode/modify/PlayLayer.hpp>
+#include <Geode/modify/PlayerObject.hpp>
 
 using namespace geode::prelude;
 
 namespace
 {
+	// how many physics ticks to wait after a respawn before checking
+	// (you measured the game starts moving after 2, so 4 is a safe margin)
+	constexpr int kWaitTicks = 4;
+
 	// held[button][0 = player 1, 1 = player 2]
 	// buttons: 1 = jump, 2 = left, 3 = right (platformer)
 	bool g_held[4][2] = {};
@@ -14,12 +19,21 @@ namespace
 	// so its internal button releases aren't mistaken for you letting go
 	bool g_ignoreInput = false;
 
-	// set on respawn, handled once on the next frame
-	bool g_replayPending = false;
+	// -1 = idle, otherwise ticks counted since the last respawn
+	int g_ticksSinceRespawn = -1;
+
+	// set once enough ticks have passed; handled at the end of the frame
+	bool g_readyToCheck = false;
 
 	void clearHeld()
 	{
 		for (auto& row : g_held) row[0] = row[1] = false;
+	}
+
+	void cancelCheck()
+	{
+		g_ticksSinceRespawn = -1;
+		g_readyToCheck = false;
 	}
 }
 
@@ -34,19 +48,39 @@ class $modify(HoldGameLayer, GJBaseGameLayer)
 	}
 };
 
+class $modify(HoldPlayerObject, PlayerObject)
+{
+	void update(float dt)
+	{
+		PlayerObject::update(dt);
+
+		if (g_ticksSinceRespawn < 0) return;
+
+		auto pl = PlayLayer::get();
+		if (!pl || this != pl->m_player1) return;
+
+		g_ticksSinceRespawn++;
+		if (g_ticksSinceRespawn >= kWaitTicks)
+		{
+			g_ticksSinceRespawn = -1;
+			g_readyToCheck = true;
+		}
+	}
+};
+
 class $modify(HoldPlayLayer, PlayLayer)
 {
 	bool init(GJGameLevel* level, bool useReplay, bool dontCreateObjects)
 	{
 		clearHeld();
-		g_replayPending = false;
+		cancelCheck();
 		return PlayLayer::init(level, useReplay, dontCreateObjects);
 	}
 
 	void pauseGame(bool p0)
 	{
 		clearHeld(); // while paused we can't see you letting go
-		g_replayPending = false;
+		cancelCheck();
 		PlayLayer::pauseGame(p0);
 	}
 
@@ -63,15 +97,16 @@ class $modify(HoldPlayLayer, PlayLayer)
 		PlayLayer::resetLevel(); // respawns you, checkpoint included
 		g_ignoreInput = false;
 
-		g_replayPending = this->m_isPracticeMode;
+		cancelCheck();
+		if (this->m_isPracticeMode) g_ticksSinceRespawn = 0;
 	}
 
 	void postUpdate(float dt)
 	{
 		PlayLayer::postUpdate(dt);
 
-		if (!g_replayPending) return;
-		g_replayPending = false;
+		if (!g_readyToCheck) return;
+		g_readyToCheck = false;
 		if (!this->m_isPracticeMode) return;
 
 		// press only what you are holding but the game is NOT holding
