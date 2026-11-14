@@ -22,20 +22,12 @@ namespace
 
 class $modify(HoldGameLayer, GJBaseGameLayer)
 {
-	void pushButton(int button, bool isPlayer1)
+	void handleButton(bool down, int button, bool isPlayer1)
 	{
 		if (!g_ignoreInput && button >= 1 && button <= 3)
-			g_held[button][isPlayer1 ? 0 : 1] = true;
+			g_held[button][isPlayer1 ? 0 : 1] = down;
 
-		GJBaseGameLayer::pushButton(button, isPlayer1);
-	}
-
-	void releaseButton(int button, bool isPlayer1)
-	{
-		if (!g_ignoreInput && button >= 1 && button <= 3)
-			g_held[button][isPlayer1 ? 0 : 1] = false;
-
-		GJBaseGameLayer::releaseButton(button, isPlayer1);
+		GJBaseGameLayer::handleButton(down, button, isPlayer1);
 	}
 };
 
@@ -64,8 +56,8 @@ class $modify(HoldPlayLayer, PlayLayer)
 		// press everything that is still physically held
 		for (int b = 1; b <= 3; b++)
 		{
-			if (g_held[b][0]) GJBaseGameLayer::pushButton(b, true);
-			if (g_held[b][1]) GJBaseGameLayer::pushButton(b, false);
+			if (g_held[b][0]) this->handleButton(true, b, true);
+			if (g_held[b][1]) this->handleButton(true, b, false);
 		}
 	}
 };
