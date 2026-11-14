@@ -1,0 +1,17 @@
+{
+	"geode": "{{ geode }}",
+	"gd": {
+		"win": "2.2081",
+		"android": "2.2081",
+		"mac": "2.2081",
+		"ios": "2.2081"
+	},
+	"id": "availableuserfr.practice-fix",
+	"name": "practice fix",
+	"version": "1.0.0",
+	"developer": "charlie kirk",
+	"description": "cool mod",
+	"dependencies": {
+		"geode.node-ids": ">=v1.23.3"
+	}
+}
