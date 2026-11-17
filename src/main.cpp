@@ -8,15 +8,21 @@ using namespace geode::prelude;
 namespace
 {
 	// how many physics ticks to wait after a respawn before checking
-	// (you measured the game starts moving after 2, so 4 is a safe margin)
+	// (the game starts moving after 2, so 4 is a safe margin)
 	constexpr int kWaitTicks = 4;
+
+	// What the 3rd parameter of queueButton means.
+	// true  = it is "isPlayer2"  (my best guess)
+	// false = it is "isPlayer1"
+	// If the mod stops pressing for you after this update, flip this value.
+	constexpr bool kThirdParamIsPlayer2 = true;
 
 	// held[button][0 = player 1, 1 = player 2]
 	// buttons: 1 = jump, 2 = left, 3 = right (platformer)
 	bool g_held[4][2] = {};
 
 	// true while the game handles death/reset by itself,
-	// so its internal button releases aren't mistaken for you letting go
+	// so its internal button events aren't mistaken for you
 	bool g_ignoreInput = false;
 
 	// -1 = idle, otherwise ticks counted since the last respawn
@@ -39,12 +45,19 @@ namespace
 
 class $modify(HoldGameLayer, GJBaseGameLayer)
 {
-	void handleButton(bool down, int button, bool isPlayer1)
+	// queueButton is called the moment you press or release, even while you are dead,
+	// so it always reflects what your finger / mouse / keyboard is really doing.
+	// (handleButton only runs when the game processes the input, which can be
+	//  delayed or skipped while dead, so releases were getting lost there.)
+	void queueButton(int button, bool push, bool thirdParam)
 	{
 		if (!g_ignoreInput && button >= 1 && button <= 3)
-			g_held[button][isPlayer1 ? 0 : 1] = down;
+		{
+			int p = (thirdParam == kThirdParamIsPlayer2) ? 1 : 0;
+			g_held[button][p] = push;
+		}
 
-		GJBaseGameLayer::handleButton(down, button, isPlayer1);
+		GJBaseGameLayer::queueButton(button, push, thirdParam);
 	}
 };
 
